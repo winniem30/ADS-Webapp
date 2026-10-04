@@ -8,11 +8,13 @@ from flask import Flask
 from config import config
 
 # Initialize Flask app
-def create_app(config_name='default'):
+def create_app(config_name=None):
     """Application factory pattern"""
     app = Flask(__name__)
     
     # Load configuration
+    if config_name is None:
+        config_name = os.environ.get('FLASK_ENV', 'default')
     app.config.from_object(config[config_name])
     
     # Create necessary directories

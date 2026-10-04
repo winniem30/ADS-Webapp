@@ -5,6 +5,10 @@ Contains all application settings, paths, and constants
 
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Base directory
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -14,8 +18,8 @@ class Config:
     """Main configuration class"""
     
     # Flask settings
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'aml-detection-secret-key-2024'
-    DEBUG = False
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'aml-detection-secret-key-2024')
+    DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     TESTING = False
     
     # Upload settings
@@ -43,6 +47,20 @@ class Config:
         'xgboost': 'dataset2_xgb.pkl'
     }
     
+    # Simple dataset model files (for testing with synthetic data)
+    SIMPLE_MODELS = {
+        'random_forest': 'simple_rf.pkl',
+        'svm': 'simple_svm.pkl',
+        'xgboost': 'simple_xgb.pkl'
+    }
+    
+    # Synthetic Money Laundering dataset model files
+    SYNTHETIC_ML_MODELS = {
+        'random_forest': 'synthetic_ml_rf.pkl',
+        'svm': 'synthetic_ml_svm.pkl',
+        'xgboost': 'synthetic_ml_xgb.pkl'
+    }
+    
     # Dataset 1 preprocessing files
     DATASET1_PREPROCESSING = {
         'label_encoders': 'dataset1_label_encoders.pkl',
@@ -60,6 +78,32 @@ class Config:
         'categorical_columns': 'dataset2_categorical_columns.pkl',
         'numerical_columns': 'dataset2_numerical_columns.pkl'
     }
+    
+    # Simple dataset preprocessing files
+    SIMPLE_PREPROCESSING = {
+        'label_encoders': 'simple_location_encoder.pkl',
+        'scaler': 'simple_scaler.pkl',
+        'feature_columns': 'simple_feature_columns.pkl'
+    }
+    
+    # Synthetic ML dataset preprocessing files
+    SYNTHETIC_ML_PREPROCESSING = {
+        'label_encoders': 'synthetic_ml_label_encoders.pkl',
+        'scaler': 'synthetic_ml_scaler.pkl',
+        'feature_columns': 'synthetic_ml_feature_columns.pkl'
+    }
+    
+    # Spider chart axes for simple dataset
+    SIMPLE_SPIDER_AXES = [
+        'Amount', 'Location Risk', 'Time Risk', 
+        'Business Account', 'Large Amount', 'Risk Score'
+    ]
+    
+    # Spider chart axes for synthetic ML dataset
+    SYNTHETIC_ML_SPIDER_AXES = [
+        'Amount', 'Risk Score', 'Payment Channel', 'City', 
+        'Country', 'Merchant Category', 'Transaction Type', 'Fraud Probability'
+    ]
     
     # Report settings
     REPORTS_FOLDER = os.path.join(BASE_DIR, 'reports')
@@ -84,7 +128,7 @@ class Config:
     }
     
     # Session settings
-    SESSION_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hour
@@ -120,7 +164,8 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Production configuration"""
     DEBUG = False
-    SESSION_COOKIE_SECURE = True
+    # Force secure cookies in production unless explicitly disabled
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
 
 
 # Configuration dictionary
