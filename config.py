@@ -29,6 +29,7 @@ class Config:
     
     # Database settings
     DATABASE_PATH = os.path.join(BASE_DIR, 'aml_database.db')
+    DATABASE_URL = os.environ.get('DATABASE_URL')
     
     # Model settings
     MODELS_FOLDER = os.path.join(BASE_DIR, 'models')
