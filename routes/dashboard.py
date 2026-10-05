@@ -47,7 +47,7 @@ def dashboard():
                 model_status[f"{dataset_type}_svm"] = {'available': False}
                 model_status[f"{dataset_type}_xgb"] = {'available': False}
         
-        return render_template('dashboard.html', 
+        return render_template('new_dashboard.html', 
                               stats=stats, 
                               alerts=alerts, 
                               model_status=model_status)

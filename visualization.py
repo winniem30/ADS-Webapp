@@ -50,6 +50,10 @@ class VisualizationEngine:
             axes = Config.DATASET1_SPIDER_AXES
         elif dataset_type == 'dataset2':
             axes = Config.DATASET2_SPIDER_AXES
+        elif dataset_type == 'simple':
+            axes = Config.SIMPLE_SPIDER_AXES
+        elif dataset_type == 'synthetic_ml':
+            axes = Config.SYNTHETIC_ML_SPIDER_AXES
         else:
             # Default to Dataset 1 axes if unknown
             axes = Config.DATASET1_SPIDER_AXES

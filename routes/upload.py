@@ -21,19 +21,30 @@ upload_bp = Blueprint('upload', __name__, url_prefix='/upload')
 def upload():
     """Handle dataset upload page"""
     if 'user_id' not in session:
+        if request.method == 'POST':
+            return jsonify({'error': 'Not authenticated', 'redirect': '/auth/login'}), 401
         return redirect(url_for('auth.login'))
     
     if request.method == 'POST':
+        # Check if this is an AJAX request (from landing page)
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
         # Check if file was uploaded
         if 'file' not in request.files:
+            if is_ajax:
+                return jsonify({'error': 'No file uploaded'}), 400
             return render_template('upload.html', error='No file uploaded')
         
         file = request.files['file']
         if file.filename == '':
+            if is_ajax:
+                return jsonify({'error': 'No file selected'}), 400
             return render_template('upload.html', error='No file selected')
         
         # Validate file extension
         if not allowed_file(file.filename):
+            if is_ajax:
+                return jsonify({'error': 'Invalid file type. Use CSV or Excel.'}), 400
             return render_template('upload.html', error='Invalid file type. Use CSV or Excel.')
         
         try:
@@ -50,6 +61,8 @@ def upload():
             if dataset_type == 'unknown':
                 # Delete unsupported file
                 os.remove(file_path)
+                if is_ajax:
+                    return jsonify({'error': error}), 400
                 return render_template('upload.html', error=error)
             
             # Create upload record
@@ -62,6 +75,10 @@ def upload():
             
             # Initialize prediction engine for detected dataset
             pred_engine = PredictionEngine(dataset_type)
+            
+            # For generic datasets, fit preprocessor on the data first
+            if dataset_type == 'generic':
+                pred_engine.preprocessor.fit(df)
             
             # Preprocess data
             X = pred_engine.preprocess_data(df)
@@ -80,11 +97,17 @@ def upload():
             # Update upload record
             db.update_upload(upload_id, row_count, 'completed', model_name)
             
+            # Return response
+            if is_ajax:
+                return jsonify({'success': True, 'upload_id': upload_id, 'row_count': row_count})
+            
             # Redirect to dashboard
             return redirect(url_for('dashboard.dashboard'))
             
         except Exception as e:
             logger.error(f"Upload error: {str(e)}")
+            if is_ajax:
+                return jsonify({'error': f'Error processing file: {str(e)}'}), 500
             return render_template('upload.html', error=f'Error processing file: {str(e)}')
     
     return render_template('upload.html')

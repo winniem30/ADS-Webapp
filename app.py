@@ -35,13 +35,13 @@ def create_app(config_name=None):
     app.register_blueprint(report_bp)
     app.register_blueprint(admin_bp)
     
-    # Root route redirect to dashboard or login
+    # Root route - show landing page or redirect to dashboard if logged in
     @app.route('/')
     def index():
-        from flask import session, redirect, url_for
+        from flask import session, redirect, url_for, render_template
         if 'user_id' in session:
             return redirect(url_for('dashboard.dashboard'))
-        return redirect(url_for('auth.login'))
+        return render_template('landing.html')
     
     # Initialize database
     from database import db

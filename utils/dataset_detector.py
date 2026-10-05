@@ -30,6 +30,19 @@ class DatasetDetector:
         'customeroccupation', 'transactionduration', 'loginattempts'
     }
     
+    # Simple dataset (synthetic data for testing)
+    SIMPLE_COLUMNS = {
+        'transaction_id', 'amount', 'location', 'timestamp',
+        'business_account', 'label', 'location_flag', 'odd_time', 'large_amount'
+    }
+    
+    # Synthetic Money Laundering dataset
+    SYNTHETIC_ML_COLUMNS = {
+        'transaction_id', 'timestamp', 'sender_id', 'receiver_id', 'amount', 'currency',
+        'payment_channel', 'city', 'country', 'merchant_category', 'transaction_type',
+        'risk_score', 'is_structured', 'rapid_movement_flag', 'suspicious_flag', 'ml_label'
+    }
+    
     @staticmethod
     def normalize_column_name(col: str) -> str:
         """
@@ -41,13 +54,14 @@ class DatasetDetector:
     def detect_dataset(cls, file_path: str) -> Tuple[str, Optional[str]]:
         """
         Detect which dataset the uploaded file belongs to.
+        If no known dataset is matched, returns 'generic' to allow processing any CSV/Excel.
         
         Args:
             file_path: Path to the uploaded CSV or Excel file
             
         Returns:
             Tuple of (dataset_type, error_message)
-            dataset_type: 'dataset1', 'dataset2', or 'unknown'
+            dataset_type: 'dataset1', 'dataset2', 'simple', 'synthetic_ml', or 'generic'
             error_message: None if successful, error message if unsupported
         """
         try:
@@ -76,13 +90,22 @@ class DatasetDetector:
             if dataset2_match >= dataset2_threshold:
                 return 'dataset2', None
             
-            # No match found
-            return 'unknown', (
-                "This dataset is currently unsupported.\n"
-                "Please upload one of the supported datasets:\n"
-                "1. Daily Transactions Dataset (prasad22)\n"
-                "2. Bank Transaction Dataset for Fraud Detection (valakhorasani)"
-            )
+            # Check for Simple dataset (synthetic data for testing)
+            simple_match = len(columns.intersection(cls.SIMPLE_COLUMNS))
+            simple_threshold = len(cls.SIMPLE_COLUMNS) * 0.5  # 50% match threshold
+            
+            if simple_match >= simple_threshold:
+                return 'simple', None
+            
+            # Check for Synthetic Money Laundering dataset
+            synthetic_ml_match = len(columns.intersection(cls.SYNTHETIC_ML_COLUMNS))
+            synthetic_ml_threshold = len(cls.SYNTHETIC_ML_COLUMNS) * 0.6  # 60% match threshold
+            
+            if synthetic_ml_match >= synthetic_ml_threshold:
+                return 'synthetic_ml', None
+            
+            # No match found - return 'generic' to allow processing any dataset
+            return 'generic', None
             
         except Exception as e:
             return 'unknown', f"Error reading file: {str(e)}"
@@ -119,6 +142,16 @@ class DatasetDetector:
                     'Device Risk', 'Merchant Risk', 'Location Risk',
                     'Frequency', 'Time Risk', 'Network Risk',
                     'Historical Behaviour', 'Velocity', 'AML Score'
+                ]
+            }
+        elif dataset_type == 'simple':
+            return {
+                'name': 'Simple Synthetic Dataset',
+                'source': 'Generated for testing',
+                'columns': list(cls.SIMPLE_COLUMNS),
+                'spider_chart_axes': [
+                    'Amount', 'Location Risk', 'Time Risk', 
+                    'Business Account', 'Large Amount', 'Risk Score'
                 ]
             }
         else:

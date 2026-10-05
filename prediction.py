@@ -19,6 +19,7 @@ sys.path.append(str(Path(__file__).parent))
 
 from preprocessing.dataset1_preprocessor import Dataset1Preprocessor
 from preprocessing.dataset2_preprocessor import Dataset2Preprocessor
+from preprocessing.generic_preprocessor import GenericPreprocessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -58,17 +59,40 @@ class PredictionEngine:
         elif dataset_type == 'dataset2':
             model_files = Config.DATASET2_MODELS
             preprocessor_class = Dataset2Preprocessor
+        elif dataset_type == 'simple':
+            model_files = Config.SIMPLE_MODELS
+            preprocessor_class = None  # Simple dataset uses direct preprocessing
+        elif dataset_type == 'synthetic_ml':
+            model_files = Config.SYNTHETIC_ML_MODELS
+            preprocessor_class = None  # Synthetic ML uses direct preprocessing
+        elif dataset_type == 'generic':
+            # For generic datasets, use generic preprocessor and simple models
+            model_files = Config.SIMPLE_MODELS
+            preprocessor_class = GenericPreprocessor
         else:
             raise ValueError(f"Invalid dataset_type: {dataset_type}")
         
         # Load preprocessing pipeline
         try:
-            self.preprocessor = preprocessor_class()
-            self.preprocessor.load_pipeline(Config.MODELS_FOLDER)
-            logger.info(f"Loaded preprocessing pipeline for {dataset_type}")
+            if preprocessor_class:
+                self.preprocessor = preprocessor_class()
+                # For generic preprocessor, don't load from disk - will fit on data
+                if dataset_type != 'generic':
+                    self.preprocessor.load_pipeline(Config.MODELS_FOLDER)
+                logger.info(f"Loaded preprocessing pipeline for {dataset_type}")
+            elif dataset_type == 'simple':
+                # For simple dataset, load preprocessing artifacts directly
+                self.preprocessor = self.load_simple_preprocessing()
+                logger.info(f"Loaded simple preprocessing for {dataset_type}")
+            elif dataset_type == 'synthetic_ml':
+                # For synthetic ML dataset, load preprocessing artifacts directly
+                self.preprocessor = self.load_synthetic_ml_preprocessing()
+                logger.info(f"Loaded synthetic ML preprocessing for {dataset_type}")
         except Exception as e:
             logger.error(f"Error loading preprocessing pipeline for {dataset_type}: {str(e)}")
-            raise
+            # For generic datasets, this is expected - will fit on data
+            if dataset_type != 'generic':
+                raise
         
         # Load models
         for model_name, filename in model_files.items():
@@ -100,6 +124,68 @@ class PredictionEngine:
                     'dataset_type': dataset_type
                 }
     
+    def load_simple_preprocessing(self):
+        """
+        Load preprocessing artifacts for simple dataset
+        
+        Returns:
+            Dictionary with preprocessing artifacts
+        """
+        preprocessing = {}
+        
+        # Load scaler
+        scaler_path = os.path.join(Config.MODELS_FOLDER, Config.SIMPLE_PREPROCESSING['scaler'])
+        if os.path.exists(scaler_path):
+            preprocessing['scaler'] = joblib.load(scaler_path)
+        else:
+            logger.warning(f"Scaler not found: {scaler_path}")
+        
+        # Load feature columns
+        feature_cols_path = os.path.join(Config.MODELS_FOLDER, Config.SIMPLE_PREPROCESSING['feature_columns'])
+        if os.path.exists(feature_cols_path):
+            preprocessing['feature_columns'] = joblib.load(feature_cols_path)
+        else:
+            logger.warning(f"Feature columns not found: {feature_cols_path}")
+        
+        # Load label encoder if exists
+        encoder_path = os.path.join(Config.MODELS_FOLDER, Config.SIMPLE_PREPROCESSING['label_encoders'])
+        if os.path.exists(encoder_path):
+            preprocessing['label_encoder'] = joblib.load(encoder_path)
+        
+        return preprocessing
+    
+    def load_synthetic_ml_preprocessing(self):
+        """
+        Load preprocessing artifacts for synthetic ML dataset
+        
+        Returns:
+            Dictionary with preprocessing artifacts
+        """
+        preprocessing = {}
+        
+        # Load scaler
+        scaler_path = os.path.join(Config.MODELS_FOLDER, Config.SYNTHETIC_ML_PREPROCESSING['scaler'])
+        if os.path.exists(scaler_path):
+            preprocessing['scaler'] = joblib.load(scaler_path)
+        else:
+            logger.warning(f"Scaler not found: {scaler_path}")
+        
+        # Load feature columns
+        feature_cols_path = os.path.join(Config.MODELS_FOLDER, Config.SYNTHETIC_ML_PREPROCESSING['feature_columns'])
+        if os.path.exists(feature_cols_path):
+            preprocessing['feature_columns'] = joblib.load(feature_cols_path)
+        else:
+            logger.warning(f"Feature columns not found: {feature_cols_path}")
+        
+        # Load label encoders
+        encoder_path = os.path.join(Config.MODELS_FOLDER, Config.SYNTHETIC_ML_PREPROCESSING['label_encoders'])
+        if os.path.exists(encoder_path):
+            preprocessing['label_encoders'] = joblib.load(encoder_path)
+        else:
+            logger.warning(f"Label encoders not found: {encoder_path}")
+        
+        return preprocessing
+    
     def preprocess_data(self, df):
         """
         Preprocess data using the appropriate preprocessing pipeline
@@ -113,6 +199,52 @@ class PredictionEngine:
         if not self.preprocessor:
             raise ValueError("No preprocessing pipeline loaded. Set dataset_type first.")
         
+        # Handle simple dataset preprocessing (dictionary-based)
+        if self.dataset_type == 'simple' and isinstance(self.preprocessor, dict):
+            feature_columns = self.preprocessor.get('feature_columns', [])
+            scaler = self.preprocessor.get('scaler')
+            
+            # Select and order features
+            X = df[feature_columns].copy()
+            
+            # Apply scaling if available
+            if scaler:
+                X = scaler.transform(X)
+            
+            return X
+        
+        # Handle synthetic ML dataset preprocessing (dictionary-based with label encoding)
+        if self.dataset_type == 'synthetic_ml' and isinstance(self.preprocessor, dict):
+            feature_columns = self.preprocessor.get('feature_columns', [])
+            label_encoders = self.preprocessor.get('label_encoders', {})
+            scaler = self.preprocessor.get('scaler')
+            
+            # Select and order features
+            X = df[feature_columns].copy()
+            
+            # Apply label encoding for categorical features
+            for col, encoder in label_encoders.items():
+                if col in X.columns:
+                    # Handle unseen categories
+                    X[col] = X[col].astype(str)
+                    unseen_mask = ~X[col].isin(encoder.classes_)
+                    X.loc[unseen_mask, col] = encoder.classes_[0] if len(encoder.classes_) > 0 else 'unknown'
+                    X[col] = encoder.transform(X[col])
+            
+            # Handle missing values
+            X = X.fillna(0)
+            
+            # Apply scaling if available
+            if scaler:
+                X = scaler.transform(X)
+            
+            return X
+        
+        # Handle generic dataset preprocessing (class-based, fit on data)
+        if self.dataset_type == 'generic':
+            return self.preprocessor.transform(df)
+        
+        # Handle standard preprocessing (class-based)
         return self.preprocessor.transform(df)
     
     def predict(self, df, model_name='random_forest'):

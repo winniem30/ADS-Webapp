@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - AML Detection Platform{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row stats-row">
+    <div class="col-md-2">
+        <div class="stat-card safe">
+            <div class="stat-icon">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.risk_distribution.get('safe', 0) }}</h3>
+                <p>Safe</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card low">
+            <div class="stat-icon">
+                <i class="fas fa-info-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.risk_distribution.get('low', 0) }}</h3>
+                <p>Low</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card medium">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.risk_distribution.get('medium', 0) }}</h3>
+                <p>Medium</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card high">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.risk_distribution.get('high', 0) }}</h3>
+                <p>High</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card critical">
+            <div class="stat-icon">
+                <i class="fas fa-radiation"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.risk_distribution.get('critical', 0) }}</h3>
+                <p>Critical</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card total">
+            <div class="stat-icon">
+                <i class="fas fa-database"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.total_transactions or 0 }}</h3>
+                <p>Total</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Alerts & Uploads -->
+<div class="row alerts-row">
+    <div class="col-md-6">
+        <div class="alert-card">
+            <div class="card-header">
+                <h5><i class="fas fa-bell"></i> Recent Alerts</h5>
+            </div>
+            <div class="card-body">
+                {% if alerts %}
+                <div class="alert-list">
+                    {% for alert in alerts %}
+                    <div class="alert-item {{ alert.severity }}">
+                        <div class="alert-icon">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                        <div class="alert-content">
+                            <p class="alert-message">{{ alert.message }}</p>
+                            <small class="alert-time">{{ alert.created_at }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No recent alerts</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="upload-card">
+            <div class="card-header">
+                <h5><i class="fas fa-upload"></i> Recent Uploads</h5>
+            </div>
+            <div class="card-body">
+                {% if stats.recent_uploads %}
+                <div class="upload-list">
+                    {% for upload in stats.recent_uploads %}
+                    <div class="upload-item">
+                        <div class="upload-icon">
+                            <i class="fas fa-file-csv"></i>
+                        </div>
+                        <div class="upload-content">
+                            <p class="upload-name">{{ upload.original_filename }}</p>
+                            <small class="upload-info">{{ upload.row_count }} rows | {{ upload.status }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No recent uploads</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Model Status -->
+<div class="row model-status-row">
+    <div class="col-12">
+        <div class="model-card">
+            <div class="card-header">
+                <h5><i class="fas fa-brain"></i> Model Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="model-status-grid">
+                    {% for model_name, status in model_status.items() %}
+                    <div class="model-status-item {{ 'active' if status.available else 'inactive' }}">
+                        <div class="model-icon">
+                            <i class="fas {{ 'fa-check-circle' if status.available else 'fa-times-circle' }}"></i>
+                        </div>
+                        <div class="model-info">
+                            <h6>{{ model_name.replace('_', ' ').title() }}</h6>
+                            <span class="status-badge">{{ 'Available' if status.available else 'Unavailable' }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.stats-row {
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: #2a2a3e;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-card.safe { border-left: 4px solid #28a745; }
+.stat-card.low { border-left: 4px solid #17a2b8; }
+.stat-card.medium { border-left: 4px solid #fd7e14; }
+.stat-card.high { border-left: 4px solid #dc3545; }
+.stat-card.critical { border-left: 4px solid #6f0a0a; }
+.stat-card.total { border-left: 4px solid #007bff; }
+
+.stat-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.stat-card.safe .stat-icon { color: #28a745; }
+.stat-card.low .stat-icon { color: #17a2b8; }
+.stat-card.medium .stat-icon { color: #fd7e14; }
+.stat-card.high .stat-icon { color: #dc3545; }
+.stat-card.critical .stat-icon { color: #6f0a0a; }
+.stat-card.total .stat-icon { color: #007bff; }
+
+.stat-content h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    color: #ffffff;
+}
+
+.stat-content p {
+    margin: 0;
+    color: #a0a0a0;
+    font-size: 0.9rem;
+}
+
+.alerts-row {
+    margin-bottom: 30px;
+}
+
+.alert-card, .upload-card, .model-card {
+    background: #2a2a3e;
+    border-radius: 15px;
+    padding: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-header {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-header h5 {
+    color: #ffffff;
+    margin: 0;
+    font-weight: 600;
+}
+
+.alert-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    border-left: 3px solid #dc3545;
+}
+
+.alert-icon {
+    font-size: 1.5rem;
+    color: #dc3545;
+    margin-right: 15px;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-message {
+    color: #ffffff;
+    margin: 0;
+    font-weight: 500;
+}
+
+.alert-time {
+    color: #a0a0a0;
+    font-size: 0.8rem;
+}
+
+.upload-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+.upload-icon {
+    font-size: 1.5rem;
+    color: #00d4ff;
+    margin-right: 15px;
+}
+
+.upload-content {
+    flex: 1;
+}
+
+.upload-name {
+    color: #ffffff;
+    margin: 0;
+    font-weight: 500;
+}
+
+.upload-info {
+    color: #a0a0a0;
+    font-size: 0.8rem;
+}
+
+.model-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.model-status-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    border-left: 3px solid;
+}
+
+.model-status-item.active {
+    border-left-color: #28a745;
+}
+
+.model-status-item.inactive {
+    border-left-color: #dc3545;
+}
+
+.model-icon {
+    font-size: 1.5rem;
+    margin-right: 15px;
+}
+
+.model-status-item.active .model-icon {
+    color: #28a745;
+}
+
+.model-status-item.inactive .model-icon {
+    color: #dc3545;
+}
+
+.model-info h6 {
+    color: #ffffff;
+    margin: 0;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #a0a0a0;
+}
+
+.model-status-item.active .status-badge {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+}
+
+.model-status-item.inactive .status-badge {
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+}
+</style>
+{% endblock %}
