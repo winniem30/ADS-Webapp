@@ -1,6 +1,6 @@
 """
-Upload Blueprint
-Handles dataset upload with automatic dataset detection
+Upload Blueprint - Dataset-Agnostic Version
+Handles dataset upload with intelligent analysis for ANY CSV/Excel file
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
@@ -8,7 +8,8 @@ from werkzeug.utils import secure_filename
 import os
 from database import db
 from utils.dataset_detector import DatasetDetector
-from prediction import PredictionEngine
+from preprocessing.generic_preprocessor import IntelligentPreprocessor
+from utils.intelligent_detector import IntelligentDetector
 import pandas as pd
 import logging
 
@@ -45,48 +46,31 @@ def upload():
             file_path = os.path.join('uploads', saved_filename)
             file.save(file_path)
             
-            # Detect dataset type
-            dataset_type, error = DatasetDetector.detect_dataset(file_path)
-            
-            if dataset_type == 'unknown':
-                # Delete unsupported file
-                os.remove(file_path)
-                return jsonify({'error': error}), 400
-            
-            # Create upload record
-            file_size = os.path.getsize(file_path)
-            upload_id = db.insert_upload(saved_filename, filename, file_size, dataset_type)
-            
-            # Load and process data
+            # Load dataset
             df = load_dataset(file_path)
             row_count = len(df)
             
-            # Initialize prediction engine for detected dataset
-            pred_engine = PredictionEngine(dataset_type)
+            # Use intelligent preprocessor (works with ANY dataset)
+            preprocessor = IntelligentPreprocessor()
+            X, analysis_info = preprocessor.fit_transform(df)
             
-            # For generic datasets, fit preprocessor on the data first
-            if dataset_type == 'generic':
-                pred_engine.preprocessor.fit(df)
+            # Use intelligent detector (automatically selects supervised/unsupervised)
+            detector = IntelligentDetector()
+            detector.method = detector.detect_method(df, analysis_info)
             
-            # Preprocess data
-            X = pred_engine.preprocess_data(df)
+            if detector.has_target:
+                # Encode target if needed
+                y = df[detector.target_column].values
+                detector.train_supervised(X, y)
+            else:
+                detector.train_unsupervised(X)
             
-            # Get selected model
-            model_name = request.form.get('model', 'random_forest')
+            # Generate results
+            results = detector.generate_results(X, df)
             
-            # Map model names for simple datasets
-            if dataset_type == 'generic':
-                model_mapping = {
-                    'random_forest': 'random_forest',
-                    'xgboost': 'xgboost',
-                    'isolation_forest': 'random_forest',  # Use RF as fallback
-                    'svm': 'svm',
-                    'logistic_regression': 'random_forest'  # Use RF as fallback
-                }
-                model_name = model_mapping.get(model_name, 'random_forest')
-            
-            # Run predictions
-            results = pred_engine.generate_prediction_results(X, df, model_name)
+            # Create upload record (use 'generic' as dataset type)
+            file_size = os.path.getsize(file_path)
+            upload_id = db.insert_upload(saved_filename, filename, file_size, 'generic')
             
             # Save predictions to database
             for result in results:
@@ -94,10 +78,18 @@ def upload():
                 db.insert_transaction(result)
             
             # Update upload record
-            db.update_upload(upload_id, row_count, 'completed', model_name)
+            db.update_upload(upload_id, row_count, 'completed', detector.method)
             
-            # Return JSON response
-            return jsonify({'success': True, 'upload_id': upload_id, 'row_count': row_count})
+            # Return JSON response with analysis info
+            return jsonify({
+                'success': True,
+                'upload_id': upload_id,
+                'row_count': row_count,
+                'analysis': analysis_info,
+                'method': detector.method,
+                'has_target': detector.has_target,
+                'metrics': detector.metrics
+            })
             
         except Exception as e:
             logger.error(f"Upload error: {str(e)}")
@@ -130,24 +122,21 @@ def preview():
         temp_path = os.path.join('uploads', f"temp_{filename}")
         file.save(temp_path)
         
-        # Detect dataset type
-        dataset_type, error = DatasetDetector.detect_dataset(temp_path)
-        
-        if dataset_type == 'unknown':
-            os.remove(temp_path)
-            return jsonify({'error': error}), 400
-        
         # Load and preview data
         df = load_dataset(temp_path)
+        
+        # Use intelligent preprocessor to analyze
+        preprocessor = IntelligentPreprocessor()
+        analysis = preprocessor.analyze_dataset(df)
         
         # Clean up temp file
         os.remove(temp_path)
         
         return jsonify({
-            'dataset_type': dataset_type,
             'rows': len(df),
             'columns': list(df.columns),
-            'preview': df.head(5).to_dict('records')
+            'preview': df.head(5).to_dict('records'),
+            'analysis': analysis
         })
         
     except Exception as e:

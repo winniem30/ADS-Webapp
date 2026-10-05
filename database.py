@@ -94,6 +94,13 @@ class DatabaseManager:
                 )
             """)
             
+            # Add dataset_type column if it doesn't exist (migration)
+            try:
+                cursor.execute("ALTER TABLE uploads ADD COLUMN dataset_type TEXT")
+            except sqlite3.OperationalError:
+                # Column already exists, ignore error
+                pass
+            
             # Alerts table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS alerts (
