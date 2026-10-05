@@ -1,15 +1,14 @@
 """
-Upload Blueprint - Dataset-Agnostic Version
-Handles dataset upload with intelligent analysis for ANY CSV/Excel file
+Upload Blueprint - Robust Dataset-Agnostic Version
+Handles dataset upload with proper sklearn Pipeline integration
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.utils import secure_filename
 import os
 from database import db
-from utils.dataset_detector import DatasetDetector
-from preprocessing.generic_preprocessor import IntelligentPreprocessor
-from utils.intelligent_detector import IntelligentDetector
+from preprocessing.robust_preprocessor import RobustPreprocessor
+from utils.robust_detector import RobustDetector
 import pandas as pd
 import logging
 
@@ -50,25 +49,43 @@ def upload():
             df = load_dataset(file_path)
             row_count = len(df)
             
-            # Use intelligent preprocessor (works with ANY dataset)
-            preprocessor = IntelligentPreprocessor()
-            X, analysis_info = preprocessor.fit_transform(df)
+            # Validate dataset is not empty
+            if len(df) == 0:
+                os.remove(file_path)
+                return jsonify({'error': 'Uploaded file is empty'}), 400
             
-            # Use intelligent detector (automatically selects supervised/unsupervised)
-            detector = IntelligentDetector()
-            detector.method = detector.detect_method(df, analysis_info)
+            if len(df.columns) == 0:
+                os.remove(file_path)
+                return jsonify({'error': 'Uploaded file has no columns'}), 400
             
-            if detector.has_target:
-                # Encode target if needed
-                y = df[detector.target_column].values
-                detector.train_supervised(X, y)
-            else:
-                detector.train_unsupervised(X)
+            # Use robust preprocessor with sklearn Pipeline
+            preprocessor = RobustPreprocessor()
+            
+            try:
+                X, analysis_info = preprocessor.fit_transform(df)
+            except ValueError as e:
+                os.remove(file_path)
+                return jsonify({'error': str(e)}), 400
+            
+            # Use robust detector
+            detector = RobustDetector()
+            detector.method = detector.select_method(df, analysis_info['column_types'])
+            
+            try:
+                if detector.has_target:
+                    # Encode target
+                    y = df[detector.target_column].values
+                    detector.train_supervised(X, y)
+                else:
+                    detector.train_unsupervised(X)
+            except ValueError as e:
+                os.remove(file_path)
+                return jsonify({'error': str(e)}), 400
             
             # Generate results
             results = detector.generate_results(X, df)
             
-            # Create upload record (use 'generic' as dataset type)
+            # Create upload record
             file_size = os.path.getsize(file_path)
             upload_id = db.insert_upload(saved_filename, filename, file_size, 'generic')
             
@@ -80,7 +97,7 @@ def upload():
             # Update upload record
             db.update_upload(upload_id, row_count, 'completed', detector.method)
             
-            # Return JSON response with analysis info
+            # Return JSON response with comprehensive analysis
             return jsonify({
                 'success': True,
                 'upload_id': upload_id,
@@ -88,12 +105,16 @@ def upload():
                 'analysis': analysis_info,
                 'method': detector.method,
                 'has_target': detector.has_target,
-                'metrics': detector.metrics
+                'metrics': detector.metrics,
+                'feature_count': len(preprocessor.feature_names_out)
             })
             
         except Exception as e:
             logger.error(f"Upload error: {str(e)}")
             logger.error(f"Upload error traceback: ", exc_info=True)
+            # Clean up file on error
+            if 'file_path' in locals() and os.path.exists(file_path):
+                os.remove(file_path)
             return jsonify({'error': f'Error processing file: {str(e)}'}), 500
     
     # GET request - if not authenticated, redirect to login
@@ -125,9 +146,9 @@ def preview():
         # Load and preview data
         df = load_dataset(temp_path)
         
-        # Use intelligent preprocessor to analyze
-        preprocessor = IntelligentPreprocessor()
-        analysis = preprocessor.analyze_dataset(df)
+        # Use robust preprocessor to analyze
+        preprocessor = RobustPreprocessor()
+        column_info = preprocessor.detect_column_types(df)
         
         # Clean up temp file
         os.remove(temp_path)
@@ -136,7 +157,7 @@ def preview():
             'rows': len(df),
             'columns': list(df.columns),
             'preview': df.head(5).to_dict('records'),
-            'analysis': analysis
+            'column_info': column_info
         })
         
     except Exception as e:

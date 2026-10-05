@@ -30,10 +30,16 @@ class DatasetDetector:
         'customeroccupation', 'transactionduration', 'loginattempts'
     }
     
-    # Simple dataset (synthetic data for testing)
+    # Simple dataset (synthetic data for testing) - more flexible matching
     SIMPLE_COLUMNS = {
         'transaction_id', 'amount', 'location', 'timestamp',
-        'business_account', 'label', 'location_flag', 'odd_time', 'large_amount'
+        'business_account', 'label'
+    }
+    
+    # Fallback - check for any money laundering related keywords
+    ML_KEYWORDS = {
+        'fraud', 'suspicious', 'anomaly', 'money', 'laundering',
+        'transaction', 'amount', 'sender', 'receiver', 'account'
     }
     
     # Synthetic Money Laundering dataset

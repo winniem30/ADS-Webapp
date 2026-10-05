@@ -19,7 +19,7 @@ sys.path.append(str(Path(__file__).parent))
 
 from preprocessing.dataset1_preprocessor import Dataset1Preprocessor
 from preprocessing.dataset2_preprocessor import Dataset2Preprocessor
-from preprocessing.generic_preprocessor import IntelligentPreprocessor
+from preprocessing.robust_preprocessor import RobustPreprocessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,9 +66,9 @@ class PredictionEngine:
             model_files = Config.SYNTHETIC_ML_MODELS
             preprocessor_class = None  # Synthetic ML uses direct preprocessing
         elif dataset_type == 'generic':
-            # For generic datasets, use intelligent preprocessor
+            # For generic datasets, use robust preprocessor
             model_files = Config.SIMPLE_MODELS
-            preprocessor_class = IntelligentPreprocessor
+            preprocessor_class = RobustPreprocessor
         else:
             raise ValueError(f"Invalid dataset_type: {dataset_type}")
         
@@ -240,10 +240,10 @@ class PredictionEngine:
             
             return X
         
-        # Handle generic dataset preprocessing (intelligent, fit on data)
+        # Handle generic dataset preprocessing (robust, fit on data)
         if self.dataset_type == 'generic':
-            # IntelligentPreprocessor returns (X, analysis_info) from fit_transform
-            if isinstance(self.preprocessor, IntelligentPreprocessor):
+            # RobustPreprocessor returns (X, analysis_info) from fit_transform
+            if isinstance(self.preprocessor, RobustPreprocessor):
                 X, self.analysis_info = self.preprocessor.fit_transform(df)
                 return X
             return self.preprocessor.transform(df)
