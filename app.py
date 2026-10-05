@@ -35,13 +35,12 @@ def create_app(config_name=None):
     app.register_blueprint(report_bp)
     app.register_blueprint(admin_bp)
     
-    # Root route - show landing page or redirect to dashboard if logged in
+    # Root route - show landing page (blue page) for everyone
     @app.route('/')
     def index():
         from flask import session, redirect, url_for, render_template
-        if 'user_id' in session:
-            return redirect(url_for('dashboard.dashboard'))
-        return render_template('landing.html')
+        # Always show landing page - the upload form will handle auth check
+        return render_template('landing.html', session=session)
     
     # Initialize database
     from database import db

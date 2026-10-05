@@ -20,32 +20,22 @@ upload_bp = Blueprint('upload', __name__, url_prefix='/upload')
 @upload_bp.route('/upload', methods=['GET', 'POST'])
 def upload():
     """Handle dataset upload page"""
-    if 'user_id' not in session:
-        if request.method == 'POST':
-            return jsonify({'error': 'Not authenticated', 'redirect': '/auth/login'}), 401
-        return redirect(url_for('auth.login'))
-    
     if request.method == 'POST':
-        # Check if this is an AJAX request (from landing page)
-        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        # Check if user is authenticated
+        if 'user_id' not in session:
+            return jsonify({'error': 'Not authenticated', 'redirect': '/auth/login'}), 401
         
         # Check if file was uploaded
         if 'file' not in request.files:
-            if is_ajax:
-                return jsonify({'error': 'No file uploaded'}), 400
-            return render_template('upload.html', error='No file uploaded')
+            return jsonify({'error': 'No file uploaded'}), 400
         
         file = request.files['file']
         if file.filename == '':
-            if is_ajax:
-                return jsonify({'error': 'No file selected'}), 400
-            return render_template('upload.html', error='No file selected')
+            return jsonify({'error': 'No file selected'}), 400
         
         # Validate file extension
         if not allowed_file(file.filename):
-            if is_ajax:
-                return jsonify({'error': 'Invalid file type. Use CSV or Excel.'}), 400
-            return render_template('upload.html', error='Invalid file type. Use CSV or Excel.')
+            return jsonify({'error': 'Invalid file type. Use CSV or Excel.'}), 400
         
         try:
             # Save file
@@ -61,9 +51,7 @@ def upload():
             if dataset_type == 'unknown':
                 # Delete unsupported file
                 os.remove(file_path)
-                if is_ajax:
-                    return jsonify({'error': error}), 400
-                return render_template('upload.html', error=error)
+                return jsonify({'error': error}), 400
             
             # Create upload record
             file_size = os.path.getsize(file_path)
@@ -86,6 +74,17 @@ def upload():
             # Get selected model
             model_name = request.form.get('model', 'random_forest')
             
+            # Map model names for simple datasets
+            if dataset_type == 'generic':
+                model_mapping = {
+                    'random_forest': 'random_forest',
+                    'xgboost': 'xgboost',
+                    'isolation_forest': 'random_forest',  # Use RF as fallback
+                    'svm': 'svm',
+                    'logistic_regression': 'random_forest'  # Use RF as fallback
+                }
+                model_name = model_mapping.get(model_name, 'random_forest')
+            
             # Run predictions
             results = pred_engine.generate_prediction_results(X, df, model_name)
             
@@ -97,18 +96,17 @@ def upload():
             # Update upload record
             db.update_upload(upload_id, row_count, 'completed', model_name)
             
-            # Return response
-            if is_ajax:
-                return jsonify({'success': True, 'upload_id': upload_id, 'row_count': row_count})
-            
-            # Redirect to dashboard
-            return redirect(url_for('dashboard.dashboard'))
+            # Return JSON response
+            return jsonify({'success': True, 'upload_id': upload_id, 'row_count': row_count})
             
         except Exception as e:
             logger.error(f"Upload error: {str(e)}")
-            if is_ajax:
-                return jsonify({'error': f'Error processing file: {str(e)}'}), 500
-            return render_template('upload.html', error=f'Error processing file: {str(e)}')
+            logger.error(f"Upload error traceback: ", exc_info=True)
+            return jsonify({'error': f'Error processing file: {str(e)}'}), 500
+    
+    # GET request - if not authenticated, redirect to login
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
     
     return render_template('upload.html')
 

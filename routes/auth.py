@@ -24,7 +24,7 @@ def login():
             session['username'] = user['username']
             session['role'] = user['role']
             db.update_last_login(user['id'])
-            return redirect(url_for('dashboard.dashboard'))
+            return redirect(url_for('dashboard.dashboard'))  # Will show landing page due to app.py logic
         else:
             flash('Invalid username or password', 'error')
             return render_template('login.html', error='Invalid username or password')
