@@ -27,9 +27,9 @@ def dashboard():
         # Get recent alerts
         alerts = db.get_alerts(unread_only=True, limit=5)
         
-        # Get model status for both datasets
+        # Get model status for all available datasets
         model_status = {}
-        for dataset_type in ['dataset1', 'dataset2']:
+        for dataset_type in ['dataset1', 'dataset2', 'simple', 'synthetic_ml']:
             try:
                 pred_engine = PredictionEngine(dataset_type)
                 model_status[f"{dataset_type}_rf"] = {

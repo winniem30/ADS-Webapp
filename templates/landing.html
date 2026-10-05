@@ -215,6 +215,12 @@
     <div class="background-pattern"></div>
     
     <div class="landing-container">
+        <div style="position: absolute; top: 20px; right: 20px;">
+            <a href="/auth/login" style="color: #00d4ff; text-decoration: none; font-weight: 500;">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </a>
+        </div>
+        
         <h1 class="brand-title">ACCURATE DETECTION SERVICES</h1>
         <h2 class="main-title">Upload Transactions</h2>
         <p class="subtitle">AI-Powered Money Laundering Detection • 5 ML Models</p>
@@ -309,6 +315,17 @@
                     }
                 });
 
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    // Server returned HTML (likely login page)
+                    showError('Please login first to upload files. Redirecting to login page...');
+                    setTimeout(() => {
+                        window.location.href = '/auth/login';
+                    }, 2000);
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (response.ok) {
@@ -328,6 +345,7 @@
                 }
             } catch (error) {
                 showError('An error occurred. Please try again.');
+                console.error('Upload error:', error);
             } finally {
                 analyzeBtn.disabled = false;
                 loadingSpinner.style.display = 'none';
