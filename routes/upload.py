@@ -98,15 +98,23 @@ def upload():
             db.update_upload(upload_id, row_count, 'completed', detector.method)
             
             # Return JSON response with comprehensive analysis
+            # Convert numpy types to native Python types for JSON serialization
             return jsonify({
                 'success': True,
                 'upload_id': upload_id,
-                'row_count': row_count,
-                'analysis': analysis_info,
+                'row_count': int(row_count),
+                'analysis': {
+                    'original_shape': [int(analysis_info['original_shape'][0]), int(analysis_info['original_shape'][1])],
+                    'numeric_features': int(analysis_info['numeric_features']),
+                    'categorical_features': int(analysis_info['categorical_features']),
+                    'excluded_features': analysis_info['excluded_features'],
+                    'column_types': analysis_info['column_types'],
+                    'feature_count': int(len(preprocessor.feature_names_out))
+                },
                 'method': detector.method,
-                'has_target': detector.has_target,
+                'has_target': bool(detector.has_target),
                 'metrics': detector.metrics,
-                'feature_count': len(preprocessor.feature_names_out)
+                'feature_count': int(len(preprocessor.feature_names_out))
             })
             
         except Exception as e:
@@ -154,7 +162,7 @@ def preview():
         os.remove(temp_path)
         
         return jsonify({
-            'rows': len(df),
+            'rows': int(len(df)),
             'columns': list(df.columns),
             'preview': df.head(5).to_dict('records'),
             'column_info': column_info

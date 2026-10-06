@@ -107,20 +107,20 @@ class RobustDetector:
         except:
             y_pred_proba = y_pred.astype(float)
         
-        # Calculate metrics
+        # Calculate metrics (convert to native Python types)
         self.metrics = {
             'method': 'Random Forest (Supervised)',
-            'accuracy': accuracy_score(y_test, y_pred),
-            'precision': precision_score(y_test, y_pred, zero_division=0),
-            'recall': recall_score(y_test, y_pred, zero_division=0),
-            'f1': f1_score(y_test, y_pred, zero_division=0)
+            'accuracy': float(accuracy_score(y_test, y_pred)),
+            'precision': float(precision_score(y_test, y_pred, zero_division=0)),
+            'recall': float(recall_score(y_test, y_pred, zero_division=0)),
+            'f1': float(f1_score(y_test, y_pred, zero_division=0))
         }
         
         try:
             if len(np.unique(y)) > 1:
-                self.metrics['roc_auc'] = roc_auc_score(y_test, y_pred_proba)
+                self.metrics['roc_auc'] = float(roc_auc_score(y_test, y_pred_proba))
         except:
-            self.metrics['roc_auc'] = 0
+            self.metrics['roc_auc'] = 0.0
         
         logger.info(f"Supervised model trained: {self.metrics}")
         return self.metrics
@@ -199,7 +199,7 @@ class RobustDetector:
         """
         Generate comprehensive results.
         
-        Returns: List of result dictionaries
+        Returns: List of result dictionaries with native Python types
         """
         predictions, anomaly_scores = self.predict(X)
         
@@ -220,19 +220,28 @@ class RobustDetector:
                 risk_level = 'safe'
             
             result = {
-                'index': idx,
+                'index': int(idx),
                 'prediction': int(pred),
                 'probability': float(score),
                 'risk_score': risk_score,
                 'risk_level': risk_level,
                 'method': self.method,
-                'has_target': self.has_target
+                'has_target': bool(self.has_target)
             }
             
-            # Add original data (preserve all columns)
+            # Add original data (preserve all columns, convert to native types)
             if idx < len(original_df):
                 for col in original_df.columns:
-                    result[col] = original_df.iloc[idx][col]
+                    val = original_df.iloc[idx][col]
+                    # Convert numpy types to native Python types
+                    if pd.isna(val):
+                        result[col] = None
+                    elif isinstance(val, (np.integer, np.floating)):
+                        result[col] = float(val) if isinstance(val, np.floating) else int(val)
+                    elif isinstance(val, np.bool_):
+                        result[col] = bool(val)
+                    else:
+                        result[col] = val
             
             results.append(result)
         

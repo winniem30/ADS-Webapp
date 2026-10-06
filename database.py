@@ -209,37 +209,44 @@ class DatabaseManager:
             """, (row_count, status, model_used, upload_id))
     
     def insert_transaction(self, transaction_data):
-        """Insert a transaction record"""
+        """Insert a transaction record with dynamic column handling"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO transactions (
-                    transaction_id, timestamp, sender, receiver, amount, bank, state,
-                    merchant, device, location, prediction, probability, risk_score,
-                    risk_level, model_used, confidence_score, execution_time,
-                    features_json, upload_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                transaction_data.get('transaction_id'),
-                transaction_data.get('timestamp'),
-                transaction_data.get('sender'),
-                transaction_data.get('receiver'),
-                transaction_data.get('amount'),
-                transaction_data.get('bank'),
-                transaction_data.get('state'),
-                transaction_data.get('merchant'),
-                transaction_data.get('device'),
-                transaction_data.get('location'),
-                transaction_data.get('prediction'),
-                transaction_data.get('probability'),
-                transaction_data.get('risk_score'),
-                transaction_data.get('risk_level'),
-                transaction_data.get('model_used'),
-                transaction_data.get('confidence_score'),
-                transaction_data.get('execution_time'),
-                json.dumps(transaction_data.get('features', {})),
-                transaction_data.get('upload_id')
-            ))
+            
+            # Get all columns from transactions table
+            cursor.execute("PRAGMA table_info(transactions)")
+            table_columns = [row[1] for row in cursor.fetchall()]
+            
+            # Build dynamic INSERT statement
+            columns_to_insert = []
+            values_to_insert = []
+            placeholders = []
+            
+            # Handle standard columns
+            standard_columns = [
+                'transaction_id', 'timestamp', 'sender', 'receiver', 'amount', 'bank', 'state',
+                'merchant', 'device', 'location', 'prediction', 'probability', 'risk_score',
+                'risk_level', 'model_used', 'confidence_score', 'execution_time', 'upload_id'
+            ]
+            
+            for col in standard_columns:
+                if col in transaction_data:
+                    columns_to_insert.append(col)
+                    values_to_insert.append(transaction_data[col])
+                    placeholders.append('?')
+            
+            # Add features_json separately
+            columns_to_insert.append('features_json')
+            values_to_insert.append(json.dumps({k: v for k, v in transaction_data.items() if k not in standard_columns}))
+            placeholders.append('?')
+            
+            # Build and execute query
+            query = f"""
+                INSERT INTO transactions ({', '.join(columns_to_insert)})
+                VALUES ({', '.join(placeholders)})
+            """
+            
+            cursor.execute(query, values_to_insert)
             return cursor.lastrowid
     
     def get_transaction(self, transaction_id):

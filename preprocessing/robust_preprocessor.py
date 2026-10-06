@@ -200,20 +200,24 @@ class RobustPreprocessor:
         self.pipeline.fit(df)
         
         # Store feature names (for consistency)
-        if hasattr(self.pipeline.named_steps['preprocessor'], 'get_feature_names_out'):
-            self.feature_names_out = self.pipeline.named_steps['preprocessor'].get_feature_names_out()
-        else:
-            # Fallback for older sklearn versions
+        # Try to get feature names from ColumnTransformer
+        try:
+            if hasattr(self.pipeline.named_steps['preprocessor'], 'get_feature_names_out'):
+                self.feature_names_out = self.pipeline.named_steps['preprocessor'].get_feature_names_out()
+            else:
+                # Fallback: use numeric + categorical feature names
+                self.feature_names_out = numeric + categorical
+        except:
             self.feature_names_out = numeric + categorical
         
-        # Store analysis
+        # Store analysis (convert numpy types to native Python)
         self.analysis = {
-            'original_shape': df.shape,
-            'numeric_features': len(numeric),
-            'categorical_features': len(categorical),
+            'original_shape': [int(df.shape[0]), int(df.shape[1])],
+            'numeric_features': int(len(numeric)),
+            'categorical_features': int(len(categorical)),
             'excluded_features': excluded,
             'column_types': column_info,
-            'feature_names': self.feature_names_out
+            'feature_names': list(self.feature_names_out) if self.feature_names_out is not None else []
         }
         
         logger.info(f"Fitted pipeline with {len(self.feature_names_out)} output features")
