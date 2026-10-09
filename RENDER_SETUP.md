@@ -1,65 +1,38 @@
-# Render Environment Variables Setup
+# Render deployment notes
 
-## Step 1: Add Environment Variables in Render Dashboard
+`render.yaml` prepares a Flask/Gunicorn service and a persistent disk for the IBM SQLite database and ADS case database. The blueprint uses the paid Starter service plan and a 10 GB disk; review current Render pricing before applying it. This repository has not been connected to or deployed on Render, so these steps are preparation only.
 
-Go to your Render service at https://dashboard.render.com and navigate to:
-- Your "ads-ef6q" service
-- Settings tab
-- Environment Variables section
+## Before deploy
 
-Add the following environment variables:
+1. Link this repository to the intended Render service and review the Blueprint preview carefully.
+2. Add the Firebase production values listed in [AUTHENTICATION.md](AUTHENTICATION.md): `FIREBASE_PROJECT_ID`, `FIREBASE_WEB_API_KEY`, `FIREBASE_AUTH_DOMAIN`, and `FIREBASE_WEB_APP_ID`.
+3. Configure Firebase Admin credentials through a protected Render Secret File. Set `GOOGLE_APPLICATION_CREDENTIALS` to its mounted path. Never commit the service-account key.
+4. Keep `AUTH_MODE=firebase`, `FLASK_ENV=production`, the generated `SECRET_KEY`, and secure cookies. Production fails at startup when required Firebase web values are absent.
+5. Configure the Firebase authorized domain and set trusted custom claims (`analyst`, `reviewer`, or `administrator`) through a trusted administrative process.
+6. Provision `/var/data/ibm_hi_small.sqlite3` on the persistent disk. Do not overwrite an existing deployment database without backing it up and reviewing it.
 
-### Required Variables
+`render.yaml` sets `CASE_DB_PATH=/var/data/ads_app.sqlite3` and keeps both SQLite databases and uploads on the same persistent disk. The service is configured for one Gunicorn worker process and one instance. Uploaded-dataset jobs run in a bounded in-process worker thread; they are not a durable distributed queue. Do not scale horizontally or claim durable job recovery with SQLite; migrate job state and application/case storage to a shared database and managed queue before doing so. IBM full-dataset scoring remains an explicit offline command and is not run during web startup.
 
-```
-SECRET_KEY=4c44c13267b984d5020e310cd8f353e9b2300ce9fa3127b899283f1b37117af2
-FLASK_ENV=production
-FLASK_DEBUG=0
-SESSION_COOKIE_SECURE=True
-```
+## Local database transfer example
 
-### Optional Variables (for customization)
+Make a consistent backup copy without modifying the local source database:
 
-```
-MAX_CONTENT_LENGTH=16777216
-LOG_LEVEL=INFO
+```powershell
+python -c "import sqlite3; src=sqlite3.connect('data/ibm_hi_small.sqlite3'); dst=sqlite3.connect('data/ibm_hi_small.deploy.sqlite3'); src.backup(dst); dst.close(); src.close()"
 ```
 
-## Step 2: Save and Redeploy
+Use the SSH host and service ID shown by Render for your service. Render documents `scp -s` for copying a file over SFTP:
 
-After adding the environment variables:
-1. Click "Save Changes"
-2. Render will automatically trigger a new deployment
-3. Wait 2-5 minutes for deployment to complete
-4. Visit https://ads-ef6q.onrender.com/ to verify
+```powershell
+scp -s .\data\ibm_hi_small.deploy.sqlite3 <SERVICE_ID>@ssh.<REGION>.render.com:/var/data/ibm_hi_small.sqlite3
+```
 
-## Step 3: Test the Application
+## Verify after deployment
 
-1. Open https://ads-ef6q.onrender.com/
-2. Login with default credentials:
-   - Username: `admin`
-   - Password: `admin123`
-3. **IMPORTANT**: Change the admin password immediately after first login
+- `GET /health` is public for the hosting health check and reports database/model readiness.
+- `GET /` should show the ADS landing page.
+- `GET /auth/login` should show the Firebase sign-in screen.
+- `GET /dashboard` and `/api/ibm/summary` should require an authenticated Firebase session.
+- Configure a Firebase user and verify sign-in, session expiry, and sign-out before granting reviewer roles.
 
-## Step 4: Database Consideration
-
-Currently, the app uses SQLite which resets on each deployment. For production:
-
-### Option A: Keep SQLite (Simpler)
-- Uploads and user data will reset on each deployment
-- Suitable for testing/demos
-- No additional setup needed
-
-### Option B: Use PostgreSQL (Recommended for Production)
-- Data persists across deployments
-- Better performance
-- Requires database migration (I can help with this)
-
-### To Add PostgreSQL on Render:
-1. Go to Render dashboard
-2. Click "New" → "PostgreSQL"
-3. Create a free PostgreSQL database
-4. Add the connection URL as `DATABASE_URL` environment variable
-5. I'll need to update the code to use SQLAlchemy instead of raw SQLite
-
-Would you like me to proceed with PostgreSQL migration?
+Do not claim deployment or external report delivery until those behaviors are verified against the live service. The app creates review-ready local evidence; it does not submit to regulators or law enforcement.

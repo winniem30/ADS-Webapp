@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>IBM AML | Investigation Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/ibm-dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/ibm-assistant.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/case-review.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/analysis.css') }}">
+  <style>.case-downloads{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}.case-downloads .btn{text-decoration:none}</style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/"><span class="brand-mark">A</span><span>AML<span class="brand-light"> / IBM</span><small>INVESTIGATION DESK</small></span></a>
+      <div class="nav-label">WORKSPACE</div>
+      <button class="nav-item active" data-view="overview"><span>◫</span> Overview</button>
+      <button class="nav-item" data-view="analyze"><span>⇧</span> Analyze dataset</button>
+      <button class="nav-item" data-view="explorer"><span>⌕</span> Transaction explorer</button>
+      <button class="nav-item" data-view="network"><span>⌘</span> Network investigation</button>
+      <button class="nav-item" data-view="model"><span>▥</span> Model performance</button>
+      <button class="nav-item" data-view="assistant"><span>◌</span> Investigation assistant</button>
+      <button class="nav-item" data-view="cases"><span>▣</span> Cases &amp; manual review</button>
+      <button class="nav-item" data-view="history"><span>◷</span> Analysis history</button>
+      <div class="sidebar-bottom"><div class="source-chip"><i></i><span>IBM AML · HI-Small</span></div><a href="/api/ibm/health" target="_blank">Service readiness ↗</a></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div><div class="eyebrow">FINANCIAL CRIME INTELLIGENCE</div><h1 id="view-title">Overview</h1></div><div class="top-actions"><span class="dataset-badge"><span class="dot"></span> HI-Small</span><span class="signed-in-as">{{ identity.email or identity.id }}</span><button class="btn btn-quiet" id="refresh">↻ <span>Refresh data</span></button><button class="btn btn-quiet" id="signout">Sign out</button></div></header>
+      <div id="global-message" class="message hidden" role="status"></div>
+      <section class="view" id="view-analyze">
+        <div class="intro-row"><div><h2>Analyze a transaction dataset</h2><p>CSV only · validated schema mapping · each run is private to its owner.</p></div></div>
+        <article class="panel upload-panel"><label id="dataset-drop" class="dataset-drop"><span class="upload-symbol">⇧</span><strong>Drop a CSV file here or browse</strong><small>File size limit follows the server configuration. Source identifiers stay as text.</small><input type="file" id="dataset-file" accept=".csv,text/csv"></label><div id="upload-feedback" class="message hidden" role="status"></div><div id="mapping-area" class="mapping-area hidden"></div><button id="upload-dataset" class="btn btn-primary hidden" type="button" disabled>Validate and preview upload</button></article>
+        <article id="analysis-run-panel" class="panel hidden"><div class="panel-head"><div><h3 id="analysis-run-title">Analysis run</h3><p id="analysis-run-copy">Choose an analysis mode.</p></div><span id="analysis-run-status" class="case-status"></span></div><div id="analysis-mode-controls" class="analysis-mode-controls hidden"><label>Analysis mode<select id="analysis-mode"></select></label><button id="start-analysis" class="btn btn-primary">Start analysis</button></div><div id="analysis-summary" class="analysis-summary"></div><div class="case-downloads"><a id="analysis-export" class="btn btn-quiet hidden" href="#">Download results CSV</a><a id="analysis-pdf" class="btn btn-quiet hidden" href="#">Download analysis PDF</a></div><div class="table-wrap"><table><thead><tr><th>TRANSACTION</th><th>TIME</th><th>FROM → TO</th><th>AMOUNT</th><th>MODEL SCORE</th><th>LABEL</th></tr></thead><tbody id="analysis-rows"><tr><td colspan="6" class="loading-row">Upload and run an analysis to see results.</td></tr></tbody></table></div><div class="pagination"><button id="analysis-prev" class="btn btn-quiet">← Previous</button><span id="analysis-page-label">Page 1</span><button id="analysis-next" class="btn btn-quiet">Next →</button></div></article>
+      </section>
+      <section class="view active" id="view-overview">
+        <div class="intro-row"><div><h2>Dataset overview</h2><p>Ground-truth labels and model evaluation are shown separately.</p></div><div class="updated" id="updated-at">Loading source status…</div></div>
+        <div class="stat-grid">
+          <article class="stat-card"><div class="stat-label">TRANSACTIONS</div><div class="stat-value" id="total-tx">—</div><div class="stat-foot" id="date-range">IBM HI-Small</div></article>
+          <article class="stat-card"><div class="stat-label">UNIQUE ACCOUNTS</div><div class="stat-value" id="total-accounts">—</div><div class="stat-foot">Bank + account identity</div></article>
+          <article class="stat-card"><div class="stat-label">GROUND-TRUTH POSITIVE</div><div class="stat-value warn" id="actual-positive">—</div><div class="stat-foot"><span id="prevalence">—</span> of transactions</div></article>
+          <article class="stat-card"><div class="stat-label">MODEL SCORED</div><div class="stat-value" id="scored-count">—</div><div class="stat-foot" id="flagged-foot">Run batch scoring to populate</div></article>
+        </div>
+        <div class="panel-grid panel-grid-wide">
+          <article class="panel"><div class="panel-head"><div><h3>Transaction activity</h3><p>Daily row counts · actual label count shown in amber</p></div><span class="unit-tag">COUNT</span></div><div id="activity-chart" class="chart-area"></div></article>
+          <article class="panel"><div class="panel-head"><div><h3>Model evaluation</h3><p>Held-out chronological test window</p></div><button class="text-action" data-go="model">Details →</button></div><div class="mini-metrics" id="mini-metrics"></div><div class="model-note">Predictions are investigation leads. They are not evidence or proof of money laundering.</div></article>
+        </div>
+        <div class="panel-grid">
+          <article class="panel"><div class="panel-head"><div><h3>Payment format</h3><p>Transaction count by format</p></div></div><div id="format-chart" class="bar-list"></div></article>
+          <article class="panel"><div class="panel-head"><div><h3>Receiving currencies</h3><p>Amounts stay grouped by currency</p></div></div><div id="currency-chart" class="bar-list"></div></article>
+          <article class="panel"><div class="panel-head"><div><h3>Model risk distribution</h3><p>Predicted classes, separate from actual labels</p></div></div><div id="risk-chart" class="bar-list"></div></article>
+        </div>
+        <div class="panel scoring-panel" id="scoring-panel"><div><h3>Risk scoring status</h3><p id="scoring-copy">Scores are produced by an explicit background command and stored separately from actual labels.</p></div><div class="progress-track"><div id="score-progress-bar"></div></div><strong id="score-progress-label">Not started</strong></div>
+      </section>
+      <section class="view" id="view-explorer">
+        <div class="intro-row"><div><h2>Transaction explorer</h2><p>Search and filter on the server. Results are paginated and capped at 200 per request.</p></div><div class="top-actions"><a class="btn btn-quiet" href="/api/ibm/export/accounts.csv">↓ Account activity CSV</a><a class="btn btn-primary" id="export-link" href="/api/ibm/export/transactions.csv">↓ Export filtered CSV</a></div></div>
+        <form id="filter-form" class="filter-panel">
+          <label class="search-field">Search transaction, account, or bank<input id="filter-q" placeholder="Transaction ID or exact identifier"></label>
+          <label>From date<input id="filter-start" type="date"></label><label>To date<input id="filter-end" type="date"></label>
+          <label>Bank ID<input id="filter-bank" placeholder="e.g. 010"></label><label>Account<input id="filter-account" placeholder="Exact account"></label>
+          <label>Payment format<select id="filter-format"><option value="">All formats</option></select></label>
+          <label>Currency<select id="filter-currency"><option value="">All currencies</option></select></label>
+          <label>Actual label<select id="filter-label"><option value="">All labels</option><option value="1">Ground-truth positive</option><option value="0">Ground-truth negative</option></select></label>
+          <label>Minimum model score<input id="filter-risk" type="number" min="0" max="1" step="0.01" placeholder="Requires batch scores"></label>
+          <div class="filter-actions"><button class="btn btn-primary" type="submit">Apply filters</button><button class="btn btn-quiet" type="reset" id="reset-filters">Reset</button></div>
+        </form>
+        <div class="table-toolbar"><span id="result-count">Loading transactions…</span><div class="pagination"><button id="prev-page" class="btn btn-quiet">← Previous</button><span id="page-label">Page 1</span><button id="next-page" class="btn btn-quiet">Next →</button></div></div>
+        <div class="table-wrap"><table><thead><tr><th>TRANSACTION</th><th>TIME</th><th>FROM → TO</th><th>RECEIVED</th><th>PAID</th><th>ACTUAL</th><th>MODEL SCORE</th><th></th></tr></thead><tbody id="transaction-rows"><tr><td colspan="8" class="loading-row">Loading IBM records…</td></tr></tbody></table></div>
+        <div id="explorer-message" class="message hidden" role="alert"></div>
+      </section>
+      <section class="view" id="view-network">
+        <div class="intro-row"><div><h2>Network investigation</h2><p>Directed edges come from real transfers. Account nodes retain their bank identity.</p></div></div>
+        <form id="graph-form" class="graph-controls"><label>Bank ID<input id="graph-bank" required placeholder="e.g. 010"></label><label>Account ID<input id="graph-account" required placeholder="Account number"></label><label>Expansion depth<select id="graph-depth"><option value="1">1 hop</option><option value="2">2 hops</option></select></label><label>Edge cap<select id="graph-limit"><option>50</option><option selected>100</option><option>200</option><option>300</option></select></label><button class="btn btn-primary">Load network</button><button type="button" id="reset-graph" class="btn btn-quiet">Reset</button></form>
+        <div class="graph-legend"><span><i class="legend-node"></i> Account (bank:account)</span><span><i class="legend-edge"></i> Transfer direction</span><span><i class="legend-edge flagged"></i> Actual laundering label = 1</span><span class="legend-hint">Scroll to zoom · drag to pan · click edge for transaction · double-click account to expand</span><a id="network-export" class="text-action hidden" download="ibm_network_edges.csv">Export displayed edges ↓</a></div>
+        <div id="graph-canvas" class="graph-canvas"><div class="empty-state">Start with a bank and account above, or open a network from a transaction.</div></div>
+        <div id="graph-detail" class="graph-detail hidden"></div>
+      </section>
+      <section class="view" id="view-model">
+        <div class="intro-row"><div><h2>Model performance</h2><p>Metrics are computed on the saved, chronological held-out evaluation split.</p></div><span class="model-version" id="model-version">—</span></div>
+        <div class="metric-grid" id="metric-grid"></div>
+        <article class="panel confusion-panel"><div class="panel-head"><div><h3>Confusion matrix</h3><p>Ground truth (rows) vs model prediction (columns)</p></div></div><div class="confusion" id="confusion-matrix"></div><div class="model-note warning-note">This operating point prioritizes recall and generates many false positives. A flagged row is a lead for investigation, not proof of wrongdoing.</div></article>
+        <article class="panel"><div class="panel-head"><div><h3>Threshold trade-off on test data</h3><p>Changing the threshold changes the number of false positives and missed positives.</p></div></div><div class="table-wrap compact"><table><thead><tr><th>THRESHOLD</th><th>PRECISION</th><th>RECALL</th><th>FALSE POSITIVES</th><th>FALSE NEGATIVES</th></tr></thead><tbody id="threshold-rows"></tbody></table></div><div class="split-note" id="split-note"></div></article>
+      </section>
+      <section class="view" id="view-assistant">
+        <div class="intro-row"><div><h2>Investigation assistant</h2><p>Deterministic query helpers grounded in the IBM records and saved evaluation report.</p></div></div>
+        <article class="panel assistant-panel"><div class="assistant-disclaimer">Answers are capped and sourced from HI-Small. The assistant does not execute generated SQL and does not decide whether a transaction is criminal.</div><form id="assistant-form"><label for="assistant-question">Ask about transactions, model scores, date counts, or an account</label><div class="assistant-input"><input id="assistant-question" maxlength="300" placeholder="e.g. Show the highest-risk transactions" required><button class="btn btn-primary">Ask</button></div></form><div class="suggestions"><button data-question="Show the highest-risk transactions">Highest-risk transactions</button><button data-question="Compare model performance">Model performance</button><button data-question="How many model-flagged transactions from 2022-09-01 to 2022-09-10">Flagged count by dates</button><button data-question="Transactions connected to account 8000EBD30">Clarify account identity</button></div><div id="assistant-answer" class="assistant-answer hidden" aria-live="polite"></div></article>
+      </section>
+      <section class="view" id="view-cases">
+        <div class="intro-row"><div><h2>Cases &amp; manual review</h2><p>Model flags are review leads. A reviewer decision and reason are recorded in an append-only timeline.</p></div><button id="cases-refresh" class="btn btn-quiet">↻ Refresh queue</button></div>
+        <div class="case-columns"><article class="panel"><div class="panel-head"><div><h3>Unopened model alerts</h3><p>Recent saved predictions · bounded preview</p></div></div><div id="alert-queue" class="case-list"><div class="empty-row">Loading alerts…</div></div></article><article class="panel"><div class="panel-head"><div><h3>Cases available to you</h3><p>Ownership and reviewer permissions apply</p></div></div><div id="case-list" class="case-list"><div class="empty-row">Loading cases…</div></div></article></div>
+        <article class="panel case-detail-panel"><div class="panel-head"><div><h3 id="case-title">Select an alert or case</h3><p id="case-subtitle">Source evidence and review history appear here.</p></div><span id="case-status" class="case-status"></span></div><div id="case-evidence" class="case-evidence"></div><div id="case-actions" class="case-actions hidden"><form id="case-note-form"><label>Add an append-only case note<textarea id="case-note" maxlength="5000" required></textarea></label><button class="btn btn-quiet">Add note</button></form><form id="case-decision-form" class="hidden"><label>Reviewer decision<select id="case-decision"><option value="in_review">Move to in review</option><option value="information_required">Request additional information</option><option value="marked_for_reporting">Mark for reporting</option><option value="cleared">Clear after review</option><option value="closed">Close case</option></select></label><label>Decision reason<textarea id="case-reason" maxlength="2000" required></textarea></label><button class="btn btn-primary">Record decision</button></form><form id="case-assignment-form" class="hidden"><label>Assign to verified reviewer UID<input id="case-assignee" maxlength="128" required></label><label>Assignment reason<textarea id="case-assignment-reason" maxlength="2000"></textarea></label><button class="btn btn-quiet">Assign case</button></form><div id="report-confirm" class="report-confirm hidden"></div></div><div id="case-timeline" class="case-timeline"></div><div id="case-message" class="message hidden" role="status"></div></article>
+      </section>
+      <section class="view" id="view-history"><div class="intro-row"><div><h2>Analysis history</h2><p>Previous uploads, processing state, selected model, and genuine metrics when labels are available.</p></div><button id="history-refresh" class="btn btn-quiet">↻ Refresh history</button></div><article class="panel"><div id="analysis-history-list" class="case-list"><div class="empty-row">Loading analysis history…</div></div></article></section>
+      <footer>IBM Transactions for Anti-Money Laundering · HI-Small · Ground truth and model outputs are kept distinct.</footer>
+    </main>
+  </div>
+  <div id="detail-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="detail-title"><div class="modal-backdrop" data-close></div><article class="modal-card"><button class="modal-close" data-close aria-label="Close">×</button><div class="eyebrow">IBM TRANSACTION RECORD</div><h2 id="detail-title">Transaction details</h2><div id="detail-body"></div><div class="modal-actions"><button id="explain-button" class="btn btn-quiet">Model contribution details</button><button id="open-network" class="btn btn-primary">Open account network</button></div><div id="explanation-box" class="explanation-box hidden"></div></article></div>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>window.ADS_AUTH_MODE={{ auth_mode|tojson }};window.ADS_FIREBASE_CONFIG={{ firebase_config|tojson }};</script>
+  <script>window.ADS_USER_ROLE={{ (identity.role or 'analyst')|tojson }};</script>
+  <script type="module" src="{{ url_for('static',filename='js/auth-client.js') }}"></script>
+  <script src="{{ url_for('static',filename='js/ibm-dashboard.js') }}"></script>
+</body>
+</html>

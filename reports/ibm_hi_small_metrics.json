@@ -1,0 +1,70 @@
+{
+  "dataset_version": "IBM-AML-HI-Small",
+  "model_version": "hi-small-sgd-v1",
+  "feature_count": 8,
+  "excluded_features": [
+    "Timestamp raw",
+    "Account IDs",
+    "transaction_id",
+    "Is Laundering"
+  ],
+  "split": {
+    "train_dates": [
+      "2022-09-01",
+      "2022-09-08"
+    ],
+    "validation_dates": [
+      "2022-09-09"
+    ],
+    "test_dates": [
+      "2022-09-10",
+      "2022-09-18"
+    ]
+  },
+  "train_rows": 4214445,
+  "validation_rows": 654467,
+  "test_rows": 209433,
+  "positive_prevalence": 0.005237951994193847,
+  "threshold": 3.3523686685124594e-43,
+  "precision": 0.04568361086765995,
+  "recall": 0.7602552415679125,
+  "f1": 0.08618818787784839,
+  "average_precision": 0.036532226466654404,
+  "roc_auc": 0.8442638318915023,
+  "confusion_matrix_tn_fp_fn_tp": [
+    190914,
+    17422,
+    263,
+    834
+  ],
+  "training_seconds": 134.9133468,
+  "threshold_comparison_test": [
+    {
+      "threshold": 3.3523686685124594e-43,
+      "precision": 0.04568361086765995,
+      "recall": 0.7602552415679125,
+      "false_positives": 17422,
+      "false_negatives": 263,
+      "true_positives": 834,
+      "true_negatives": 190914
+    },
+    {
+      "threshold": 0.01,
+      "precision": 0.045639726932393744,
+      "recall": 0.7556973564266181,
+      "false_positives": 17335,
+      "false_negatives": 268,
+      "true_positives": 829,
+      "true_negatives": 191001
+    },
+    {
+      "threshold": 0.5,
+      "precision": 0.04564726611970706,
+      "recall": 0.7556973564266181,
+      "false_positives": 17332,
+      "false_negatives": 268,
+      "true_positives": 829,
+      "true_negatives": 191004
+    }
+  ]
+}

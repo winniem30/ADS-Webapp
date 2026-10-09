@@ -1,6 +1,20 @@
 # Money Laundering Detection & Risk Intelligence Platform
 
-A comprehensive, production-quality AI-powered Anti-Money Laundering (AML) detection web application built with Python Flask. This platform provides professional financial intelligence capabilities similar to banking AML systems with **automatic dataset detection** and **dual Kaggle dataset support**.
+ADS is a Flask/Jinja application with a vanilla JavaScript frontend. Its public home page is the ADS landing page; the authenticated investigation workspace currently uses the IBM Transactions for Anti-Money Laundering HI-Small dataset. The existing IBM import, saved model, and persisted scores remain the real-data foundation.
+
+## Quick start on Windows
+
+1. Run `setup_windows.bat` once.
+2. Run `run_local.bat`.
+3. Open [http://127.0.0.1:5000](http://127.0.0.1:5000) and choose **Try ADS**.
+
+The local run script explicitly selects development authentication and offers a local analyst session. This option is available only when `AUTH_MODE=development`; production requires Firebase. To configure Firebase sign-in and Render credentials, follow [AUTHENTICATION.md](AUTHENTICATION.md). No Firebase project values or credentials are included in this repository.
+
+The checked-in evaluation artifact and model are used automatically. The large SQLite database is local/ignored and is not downloaded by setup. Set `IBM_AML_DB` to its path if it is stored elsewhere. Check `/health` for service, database, and model readiness.
+
+For a new local installation, activate `.venv\Scripts\Activate.ps1`, set `$env:IBM_AML_SOURCE` to the actual `HI-Small_Trans.csv`, then run `python -m training.ibm_pipeline inspect` and `python -m training.ibm_pipeline ingest` only when the database is missing. Run `python -m training.ibm_pipeline train` only when you intentionally want to retrain. To populate durable scores, first run `python -m training.ibm_pipeline estimate-score`, review time and storage, then run `python -m training.ibm_pipeline score --yes`. The score job is chunked and resumable; it is never run by web startup.
+
+Run tests with `python -m unittest discover -s tests -v`. IBM API docs and Render transfer instructions are in [IBM_AML.md](IBM_AML.md).
 
 ---
 

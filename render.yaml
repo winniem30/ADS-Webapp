@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: ads-ef6q
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --timeout 180 --workers 1 --bind 0.0.0.0:$PORT --access-logfile - --error-logfile - --graceful-timeout 30
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: ibm-aml-data
+      mountPath: /var/data
+      sizeGB: 10
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: AUTH_MODE
+        value: firebase
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: IBM_AML_DB
+        value: /var/data/ibm_hi_small.sqlite3
+      - key: CASE_DB_PATH
+        value: /var/data/ads_app.sqlite3
+      - key: UPLOAD_FOLDER
+        value: /var/data/uploads
+      - key: IBM_AML_MODEL
+        value: /opt/render/project/src/models/ibm_hi_small_sgd.joblib
+      - key: IBM_AML_METRICS
+        value: /opt/render/project/src/reports/ibm_hi_small_metrics.json
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_WEB_API_KEY
+        sync: false
+      - key: FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: FIREBASE_WEB_APP_ID
+        sync: false
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        sync: false

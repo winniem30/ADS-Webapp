@@ -18,17 +18,26 @@ class Config:
     """Main configuration class"""
     
     # Flask settings
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'aml-detection-secret-key-2024')
+    # create_app supplies a process-local random key only in development.
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    AUTH_MODE = os.environ.get('AUTH_MODE', 'development').lower()
+    FIREBASE_PROJECT_ID = os.environ.get('FIREBASE_PROJECT_ID')
+    FIREBASE_WEB_CONFIG = {
+        'apiKey': os.environ.get('FIREBASE_WEB_API_KEY', ''),
+        'authDomain': os.environ.get('FIREBASE_AUTH_DOMAIN', ''),
+        'projectId': os.environ.get('FIREBASE_PROJECT_ID', ''),
+        'appId': os.environ.get('FIREBASE_WEB_APP_ID', ''),
+    }
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     TESTING = False
     
     # Upload settings
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or os.path.join(BASE_DIR, 'uploads')
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', str(16 * 1024 * 1024)))
     ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
     
     # Database settings
-    DATABASE_PATH = os.path.join(BASE_DIR, 'aml_database.db')
+    DATABASE_PATH = os.environ.get('CASE_DB_PATH') or os.path.join(BASE_DIR, 'aml_database.db')
     DATABASE_URL = os.environ.get('DATABASE_URL')
     
     # Model settings
@@ -167,6 +176,7 @@ class ProductionConfig(Config):
     DEBUG = False
     # Force secure cookies in production unless explicitly disabled
     SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
+    AUTH_MODE = os.environ.get('AUTH_MODE', 'firebase').lower()
 
 
 # Configuration dictionary

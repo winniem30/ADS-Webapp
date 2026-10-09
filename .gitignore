@@ -50,6 +50,7 @@ uploads/*
 # Reports
 reports/*
 !reports/.gitkeep
+!reports/ibm_hi_small_metrics.json
 
 # Charts
 charts/*
@@ -69,6 +70,7 @@ Thumbs.db
 # Model files (if they're large)
 *.pkl
 *.joblib
+!models/ibm_hi_small_sgd.joblib
 
 # Data files
 *.csv

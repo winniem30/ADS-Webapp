@@ -1,63 +1,39 @@
-"""
-Authentication Blueprint
-Handles user login, logout, and registration
-"""
+"""Firebase sign-in UI and explicit local-only development authentication."""
+from urllib.parse import urljoin, urlparse
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from werkzeug.security import generate_password_hash, check_password_hash
-from database import db
+from flask import Blueprint, current_app, make_response, redirect, render_template, request, session, url_for
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
-@auth_bp.route('/login', methods=['GET', 'POST'])
+def _safe_next(value):
+    if not value:
+        return '/dashboard'
+    target = urlparse(urljoin(request.host_url, value))
+    if target.scheme not in {'http', 'https'} or target.netloc != request.host:
+        return '/dashboard'
+    return target.path + (('?' + target.query) if target.query else '')
+
+
+@auth_bp.get('/login')
 def login():
-    """Handle user login"""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        user = db.get_user(username)
-        
-        if user and check_password_hash(user['password_hash'], password):
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['role'] = user['role']
-            db.update_last_login(user['id'])
-            return redirect(url_for('dashboard.dashboard'))  # Will show landing page due to app.py logic
-        else:
-            flash('Invalid username or password', 'error')
-            return render_template('login.html', error='Invalid username or password')
-    
-    return render_template('login.html')
+    return render_template('firebase_login.html',
+                           auth_mode=current_app.config.get('AUTH_MODE'),
+                           firebase_config=current_app.config.get('FIREBASE_WEB_CONFIG', {}),
+                           next_url=_safe_next(request.args.get('next')))
 
 
-@auth_bp.route('/ Register', methods=['GET', 'POST'])
+@auth_bp.get('/register')
 def register():
-    """Handle user registration"""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        email = request.form.get('email')
-        
-        # Check if user already exists
-        existing_user = db.get_user(username)
-        if existing_user:
-            flash('Username already exists', 'error')
-            return render_template('register.html', error='Username already exists')
-        
-        # Create new user
-        password_hash = generate_password_hash(password)
-        db.insert_user(username, password_hash, email, role='analyst')
-        
-        flash('Registration successful! Please login.', 'success')
-        return redirect(url_for('auth.login'))
-    
-    return render_template('register.html')
-
-
-@auth_bp.route('/logout')
-def logout():
-    """Handle user logout"""
-    session.clear()
+    # Account creation is managed in the configured Firebase project; never accept
+    # browser-selected roles or provision privileged accounts through this app.
     return redirect(url_for('auth.login'))
+
+
+@auth_bp.get('/logout')
+def logout():
+    session.clear()
+    response = make_response(redirect(url_for('index')))
+    response.delete_cookie('ads_session', path='/', secure=not current_app.config.get('DEBUG', False),
+                           httponly=True, samesite='Strict')
+    return response
